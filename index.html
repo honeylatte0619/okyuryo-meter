@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>パートのお給料メーター</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1F5FA8">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --paper:#F6F4EF; --card:#FFFFFF; --ink:#28323C; --sub:#5D6772; --line:#DFDAD0;
+  --accent:#1F5FA8; --on-accent:#FFFFFF; --accent-soft:#E4EDF7;
+  --ok:#256B3D; --ok-bg:#E3F0E6; --warn:#8A5F00; --warn-bg:#F7EED6; --bad:#B23829; --bad-bg:#F9E6E2;
+  --sun:#B85042; --sat:#2A6FB0; --dim:#EFECE5;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#161A1F; --card:#1F252C; --ink:#EAE7E0; --sub:#A8B0B8; --line:#3A424B;
+    --accent:#3D7CC4; --on-accent:#FFFFFF; --accent-soft:#243444;
+    --ok:#8CC79B; --ok-bg:#20321F; --warn:#E3B968; --warn-bg:#342B12; --bad:#EC9184; --bad-bg:#3B221E;
+    --sun:#E89383; --sat:#85B5E4; --dim:#262D35;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#161A1F; --card:#1F252C; --ink:#EAE7E0; --sub:#A8B0B8; --line:#3A424B;
+  --accent:#3D7CC4; --on-accent:#FFFFFF; --accent-soft:#243444;
+  --ok:#8CC79B; --ok-bg:#20321F; --warn:#E3B968; --warn-bg:#342B12; --bad:#EC9184; --bad-bg:#3B221E;
+  --sun:#E89383; --sat:#85B5E4; --dim:#262D35;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Meiryo","Noto Sans JP",system-ui,sans-serif;
+  font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+main{max-width:480px;margin:0 auto;padding:14px 14px 104px}
+h1{font-size:19px;font-weight:700;margin:4px 0 2px;text-align:center}
+.sub{color:var(--sub);font-size:13px;margin:0 0 12px;text-align:center}
+.screen{display:none}
+.screen.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.meter-label{font-size:15px;color:var(--sub);text-align:center;margin:0}
+.meter-num{font-size:46px;font-weight:700;text-align:center;margin:2px 0 10px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.meter-num small{font-size:22px;font-weight:700}
+.bar{height:16px;border-radius:8px;background:var(--dim);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:8px;background:var(--ok);transition:width .3s}
+.bar i.warn{background:var(--warn)}
+.bar i.bad{background:var(--bad)}
+.bar-cap{font-size:13px;color:var(--sub);text-align:right;margin:4px 0 0;font-variant-numeric:tabular-nums}
+.box{border-radius:14px;padding:12px 16px;margin:12px 0 0;text-align:center}
+.box p{margin:0}
+.box .b1{font-size:18px;font-weight:700}
+.box .b2{font-size:13px;margin-top:2px}
+.box.ok{background:var(--ok-bg);color:var(--ok)}
+.box.warn{background:var(--warn-bg);color:var(--warn)}
+.box.bad{background:var(--bad-bg);color:var(--bad)}
+.bigbtn{display:block;width:100%;padding:19px 12px;font-size:21px;font-weight:700;border:none;border-radius:16px;
+  background:var(--accent);color:var(--on-accent);cursor:pointer;font-family:inherit}
+.bigbtn:active{transform:scale(.98)}
+.btn{display:inline-block;padding:11px 16px;font-size:16px;font-weight:700;border:2px solid var(--line);border-radius:12px;
+  background:var(--card);color:var(--ink);cursor:pointer;font-family:inherit}
+.btn:active{transform:scale(.97)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.hint{font-size:13px;color:var(--sub);text-align:center;margin:8px 0 0}
+.week{display:flex;align-items:center;gap:10px}
+.week .bar{flex:1;height:12px}
+.week span{font-size:13px;color:var(--sub);white-space:nowrap;font-variant-numeric:tabular-nums}
+.done-line{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.done-line p{margin:0;font-size:17px;font-weight:700}
+.done-line small{display:block;font-size:13px;color:var(--sub);font-weight:400}
+.rowlist{margin:0;padding:0;list-style:none}
+.rowlist li{display:flex;justify-content:space-between;align-items:center;padding:11px 6px;border-bottom:1px solid var(--line);gap:8px}
+.rowlist li:last-child{border-bottom:none}
+.rowlist .l p{margin:0;font-size:16px;font-weight:700}
+.rowlist .l small{font-size:12.5px;color:var(--sub);font-weight:400}
+.rowlist .r{text-align:right}
+.rowlist .r p{margin:0;font-size:16px;font-variant-numeric:tabular-nums}
+.rowlist .r small{font-size:12.5px}
+.rowlist .r .okt{color:var(--ok)}
+.rowlist .r .badt{color:var(--bad)}
+.rowlist li.over{background:var(--bad-bg);border-radius:10px;border-bottom-color:transparent}
+.rowlist li.over .l p,.rowlist li.over .l small,.rowlist li.over .r p{color:var(--bad)}
+.cal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.cal-head p{margin:0;font-size:18px;font-weight:700}
+.cal-head button{width:52px;height:44px;font-size:20px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);cursor:pointer}
+table.cal{width:100%;border-collapse:collapse;table-layout:fixed}
+table.cal th{font-size:12.5px;color:var(--sub);font-weight:400;padding:4px 0}
+table.cal th.su{color:var(--sun)}table.cal th.sa{color:var(--sat)}
+table.cal td{height:52px;text-align:center;vertical-align:top;padding:2px 1px}
+.day{width:100%;height:100%;border:none;background:none;border-radius:10px;cursor:pointer;font-family:inherit;color:var(--ink);padding:3px 0 0;line-height:1.25}
+.day .n{font-size:15px}
+.day .t{display:block;font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums}
+.day.rec{background:var(--accent-soft)}
+.day.rec .n{font-weight:700;color:var(--accent)}
+.day.rec .t{color:var(--accent)}
+.day.plan{border:1.5px dashed var(--accent)}
+.day.plan .t{color:var(--sub)}
+.day.today{outline:2px solid var(--accent);outline-offset:-2px}
+.day.su .n{color:var(--sun)}.day.sa .n{color:var(--sat)}
+.day.rec.su .n,.day.rec.sa .n{color:var(--accent)}
+.day.other{visibility:hidden}
+.sumline{display:flex;justify-content:space-between;font-size:15px;margin:10px 2px 0}
+.sumline b{font-variant-numeric:tabular-nums}
+.set-row{display:flex;justify-content:space-between;align-items:center;padding:10px 2px;border-bottom:1px solid var(--line);gap:10px}
+.set-row:last-child{border-bottom:none}
+.set-row label{font-size:16px;flex:1}
+.set-row .unit{font-size:14px;color:var(--sub)}
+input[type=number]{width:108px;padding:10px;font-size:18px;text-align:right;border:1.5px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--ink);font-family:inherit;font-variant-numeric:tabular-nums}
+input[type=time]{padding:9px 6px;font-size:17px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-family:inherit}
+input[type=checkbox]{width:24px;height:24px;accent-color:var(--accent)}
+.shift-row{display:flex;align-items:center;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.shift-row:last-child{border-bottom:none}
+.shift-row .wd{width:34px;font-size:16px;font-weight:700}
+.shift-row .wd.su{color:var(--sun)}.shift-row .wd.sa{color:var(--sat)}
+.shift-row .tilde{color:var(--sub)}
+h2{font-size:16px;font-weight:700;margin:0 0 6px}
+details{border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:14px;background:var(--card)}
+summary{font-size:16px;font-weight:700;cursor:pointer}
+details p,details ol{font-size:15px;color:var(--ink)}
+textarea{width:100%;height:110px;font-size:13px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);padding:8px;font-family:monospace}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);z-index:40}
+.navin{max-width:480px;margin:0 auto;display:flex}
+nav button{flex:1;border:none;background:none;color:var(--sub);font-family:inherit;font-size:12.5px;font-weight:700;
+  padding:8px 0 calc(10px + env(safe-area-inset-bottom));cursor:pointer;line-height:1.3}
+nav button svg{display:block;margin:0 auto 1px}
+nav button.active{color:var(--accent)}
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.ovl.show{display:flex}
+.panel{width:100%;max-width:480px;background:var(--card);border-radius:20px 20px 0 0;padding:20px 18px calc(24px + env(safe-area-inset-bottom))}
+.panel h2{font-size:19px;text-align:center;margin-bottom:12px}
+.panel .times{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:6px}
+.panel .times input[type=time]{font-size:22px;padding:12px 8px}
+.panel .err{color:var(--bad);font-size:14px;text-align:center;margin:4px 0;min-height:1.4em}
+.panel .acts{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.panel .acts .bigbtn{padding:15px 12px;font-size:19px}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--paper);
+  padding:10px 22px;border-radius:24px;font-size:16px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .25s;z-index:60;white-space:nowrap}
+#toast.show{opacity:1}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<main>
+
+<section id="scr-home" class="screen active">
+  <h1 id="h-title">お給料メーター</h1>
+  <p class="sub" id="h-range"></p>
+  <div id="h-ask"></div>
+  <div class="card">
+    <p class="meter-label">ここまでのお給料（見込み）</p>
+    <p class="meter-num" id="h-amount"></p>
+    <div class="bar"><i id="h-bar"></i></div>
+    <p class="bar-cap" id="h-cap"></p>
+    <div class="box" id="h-signal"></div>
+  </div>
+  <div class="card" id="h-today"></div>
+  <div class="card">
+    <h2>今週の働いた時間</h2>
+    <div class="week"><div class="bar"><i id="h-wbar"></i></div><span id="h-wtext"></span></div>
+    <p class="hint" id="h-wnote"></p>
+  </div>
+  <div class="card" id="h-install" style="display:none">
+    <h2>アプリとしてスマホに入れる</h2>
+    <p class="hint" style="text-align:left;margin:0 0 10px">入れておくと、ホーム画面のアイコンから全画面で開けるようになります。</p>
+    <button class="bigbtn" id="inst-btn" style="font-size:19px;padding:15px 12px">スマホに入れる</button>
+  </div>
+</section>
+
+<section id="scr-yotei" class="screen">
+  <h1>よてい</h1>
+  <p class="sub" id="y-range"></p>
+  <div class="card">
+    <ul class="rowlist" id="y-list"></ul>
+  </div>
+  <div id="y-advice"></div>
+</section>
+
+<section id="scr-kiroku" class="screen">
+  <h1>きろく</h1>
+  <p class="sub">シフト表が出たら、先の日をおして予定を合わせましょう</p>
+  <div class="card">
+    <div class="cal-head">
+      <button id="k-prev" aria-label="前の月">◀</button>
+      <p id="k-title"></p>
+      <button id="k-next" aria-label="次の月">▶</button>
+    </div>
+    <table class="cal" id="k-cal"></table>
+    <p class="hint" style="text-align:left;margin:6px 0 0">ぬりつぶし＝働いた日　点線のわく＝働く予定（おすと変えられます）</p>
+    <div class="sumline"><span id="k-plabel"></span><b id="k-psum"></b></div>
+    <div class="sumline"><span></span><b id="k-pdays" style="font-weight:400;color:var(--sub);font-size:13px"></b></div>
+  </div>
+</section>
+
+<section id="scr-settei" class="screen">
+  <h1>せってい</h1>
+  <p class="sub">時給が変わったらここを直すだけでOK</p>
+  <div class="card">
+    <h2>金額</h2>
+    <div class="set-row"><label for="s-cap">月の上限額</label><span><input type="number" id="s-cap" step="1000" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+    <div class="set-row"><label for="s-wp">平日の時給</label><span><input type="number" id="s-wp" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+    <div class="set-row"><label for="s-wh">土日祝の時給</label><span><input type="number" id="s-wh" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+    <div class="set-row"><label for="s-com">通勤手当（月）</label><span><input type="number" id="s-com" step="100" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+  </div>
+  <div class="card">
+    <h2>週の時間の上限</h2>
+    <div class="set-row"><label>1週間（日〜土）に働くのは</label>
+      <span><input type="number" id="s-wlh" step="1" min="0" max="80" style="width:64px" inputmode="numeric"> <span class="unit">時間</span>
+      <input type="number" id="s-wlm" step="5" min="0" max="55" style="width:64px" inputmode="numeric"> <span class="unit">分まで</span></span></div>
+    <p class="hint" style="text-align:left">週20時間以上になると社会保険の対象になることがあります。契約どおり19時間40分のままがおすすめです。</p>
+  </div>
+  <div class="card">
+    <h2>いつもの勤務時間</h2>
+    <div id="s-shifts"></div>
+  </div>
+  <details>
+    <summary>つかいかた</summary>
+    <ol style="padding-left:20px">
+      <li>働いて帰ってきたら、ホームの<b>「きょう働いた をつける」</b>を1回おすだけ。</li>
+      <li>上の大きな数字が今月のお給料の見込みです。<b>緑なら安心</b>、赤は働きすぎです。</li>
+      <li><b>「よてい」</b>を見ると、いつまで働けるか・いつお休みすればよいかがわかります。</li>
+      <li>おし間違えたら<b>「きろく」</b>でその日をおして直せます。</li>
+      <li>つけ忘れても大丈夫。次に開いたときに<b>「◯日は働きましたか？」</b>と聞いてくれます。</li>
+      <li>職場のシフト表が出たら、<b>「きろく」で先の日をおして予定を合わせておく</b>と、その時点で「超えそうかどうか」がわかります。いつもどおり（水木金土）の月は何もしなくてOK。</li>
+    </ol>
+    <p><b>スマホのホーム画面に置くには</b><br>
+    iPhone: Safariでこのページを開く → 共有ボタン → 「ホーム画面に追加」<br>
+    Android: Chromeで開く → 右上の「︙」 → 「ホーム画面に追加」</p>
+    <p>記録はこのスマホの中だけに保存されます。同じスマホ・同じブラウザで使い続けてください。</p>
+  </details>
+  <details>
+    <summary>データのひっこし・リセット</summary>
+    <p>機種変更のときは「書き出す」で出た文字をコピーして、新しいスマホで貼り付けて「読み込む」をおします。</p>
+    <textarea id="s-io" aria-label="データの書き出しと読み込み"></textarea>
+    <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn" id="s-export">書き出す</button>
+      <button class="btn" id="s-import">読み込む</button>
+      <button class="btn danger" id="s-reset" style="margin-left:auto">最初にもどす</button>
+    </div>
+  </details>
+</section>
+
+</main>
+
+<div class="ovl" id="ovl">
+  <div class="panel">
+    <h2 id="e-title"></h2>
+    <div class="times">
+      <input type="time" id="e-start" step="300" aria-label="始まりの時間">
+      <span class="tilde">〜</span>
+      <input type="time" id="e-end" step="300" aria-label="終わりの時間">
+    </div>
+    <p class="err" id="e-err"></p>
+    <div class="acts">
+      <button class="bigbtn" id="e-save">保存する</button>
+      <button class="btn danger" id="e-del">働いていない日にする</button>
+      <button class="btn" id="e-close">とじる</button>
+    </div>
+  </div>
+</div>
+
+<nav aria-label="画面の切りかえ"><div class="navin">
+  <button data-scr="home" class="active"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>ホーム</button>
+  <button data-scr="yotei"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14M5 12h9M5 18h6"/><path d="M15 17l2 2 4-4"/></svg>よてい</button>
+  <button data-scr="kiroku"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>きろく</button>
+  <button data-scr="settei"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"/><circle cx="16" cy="8" r="2.2"/><circle cx="7" cy="16" r="2.2"/></svg>せってい</button>
+</div></nav>
+
+<div class="ovl" id="ios-ovl">
+  <div class="panel">
+    <h2>ホーム画面に入れる手順</h2>
+    <ol style="font-size:17px;line-height:2.1;padding-left:24px;margin:0 0 14px">
+      <li>下にある <b>共有ボタン</b>（四角から上に矢印が出ている印）をおす</li>
+      <li><b>「ホーム画面に追加」</b>をおす</li>
+      <li>右上の <b>「追加」</b> をおす</li>
+    </ol>
+    <button class="btn" id="ios-close" style="width:100%">とじる</button>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+var LS='kyuryo-meter-v1';
+var HOLIDAYS=new Set([
+'2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20','2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06','2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23','2026-10-12','2026-11-03','2026-11-23',
+'2027-01-01','2027-01-11','2027-02-11','2027-02-23','2027-03-21','2027-03-22','2027-04-29','2027-05-03','2027-05-04','2027-05-05','2027-07-19','2027-08-11','2027-09-20','2027-09-23','2027-10-11','2027-11-03','2027-11-23',
+'2028-01-01','2028-01-10','2028-02-11','2028-02-23','2028-03-20','2028-04-29','2028-05-03','2028-05-04','2028-05-05','2028-07-17','2028-08-11','2028-09-18','2028-09-22','2028-10-09','2028-11-03','2028-11-23'
+]);
+var WN=['日','月','火','水','木','金','土'];
+function defaults(){return{
+  settings:{cap:100000,wagePlain:1100,wageHoliday:1105,commute:8000,weekLimitH:19,weekLimitM:40,
+    shifts:[null,null,null,{s:'09:00',e:'13:40'},{s:'09:00',e:'14:00'},{s:'09:00',e:'14:00'},{s:'09:00',e:'14:00'}]},
+  records:{},plans:{},firstUse:dkey(today0())};}
+var state=load();
+function load(){
+  try{var j=JSON.parse(localStorage.getItem(LS));
+    if(j&&j.settings&&j.records){var d=defaults();for(var k in d.settings){if(j.settings[k]===undefined)j.settings[k]=d.settings[k];}
+      if(!j.plans)j.plans={};if(!j.firstUse)j.firstUse=dkey(today0());return j;}
+  }catch(e){}
+  return defaults();
+}
+function save(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
+
+function dkey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fromKey(k){var p=k.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
+function hm2min(t){var p=t.split(':');return (+p[0])*60+(+p[1]);}
+function durOf(r){return Math.max(0,hm2min(r.e)-hm2min(r.s));}
+function fmtHM(t){return t.replace(/^0/,'');}
+function fmtDur(min){var h=Math.floor(min/60),m=min%60;if(h===0)return m+'分';return h+'時間'+(m?m+'分':'');}
+function fmtColon(min){return Math.floor(min/60)+':'+String(min%60).padStart(2,'0');}
+function yen(n){return n.toLocaleString('ja-JP')+'円';}
+function isHolRate(d){var g=d.getDay();return g===0||g===6||HOLIDAYS.has(dkey(d));}
+function today0(){var t=new Date();return new Date(t.getFullYear(),t.getMonth(),t.getDate());}
+function periodOf(d){var s,e;
+  if(d.getDate()>=21){s=new Date(d.getFullYear(),d.getMonth(),21);e=new Date(d.getFullYear(),d.getMonth()+1,20);}
+  else{s=new Date(d.getFullYear(),d.getMonth()-1,21);e=new Date(d.getFullYear(),d.getMonth(),20);}
+  return{s:s,e:e,label:(e.getMonth()+1)+'月分',range:(s.getMonth()+1)+'月21日〜'+(e.getMonth()+1)+'月20日'};}
+function eachDay(s,e,fn){for(var d=new Date(s);d<=e;d.setDate(d.getDate()+1))fn(new Date(d));}
+function amountOf(mp,mh){var st=state.settings;
+  return Math.ceil(mp*st.wagePlain/60)+Math.ceil(mh*st.wageHoliday/60)+st.commute;}
+function partsOf(s,e){var mp=0,mh=0,days=0,min=0;
+  eachDay(s,e,function(d){var r=state.records[dkey(d)];if(!r)return;var m=durOf(r);days++;min+=m;
+    if(isHolRate(d))mh+=m;else mp+=m;});
+  return{mp:mp,mh:mh,days:days,min:min};}
+function resolvedPlan(k,d){var p=state.plans[k];if(p!==undefined)return p;return state.settings.shifts[d.getDay()];}
+function plannedFuture(from,e){var arr=[];
+  eachDay(from,e,function(d){var k=dkey(d);if(state.records[k])return;var sh=resolvedPlan(k,d);if(!sh)return;
+    var m=Math.max(0,hm2min(sh.e)-hm2min(sh.s));if(m>0)arr.push({d:d,sh:sh,m:m,hol:isHolRate(d)});});
+  return arr;}
+function dayLabel(d){return d.getDate()+'日（'+WN[d.getDay()]+'）';}
+function fullLabel(d){return (d.getMonth()+1)+'月'+d.getDate()+'日（'+WN[d.getDay()]+'）';}
+
+var $=function(id){return document.getElementById(id);};
+var toastTimer=null;
+function toast(msg){var t=$('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},1800);}
+
+function renderHome(){
+  var td=today0(),P=periodOf(td),st=state.settings;
+  $('h-range').textContent=P.label+'のお給料（'+P.range+'・月末払い）';
+
+  var ask=$('h-ask'),cand=null;
+  for(var off=13;off>=1;off--){
+    var ad=new Date(td);ad.setDate(ad.getDate()-off);
+    var ak=dkey(ad);
+    if(ak<state.firstUse)continue;
+    if(state.records[ak])continue;
+    var apl=resolvedPlan(ak,ad);
+    if(!apl)continue;
+    cand={d:ad,k:ak,pl:apl,off:off};break;
+  }
+  if(cand){
+    var lbl=(cand.off===1)?'きのう（'+fullLabel(cand.d)+'）':fullLabel(cand.d);
+    ask.innerHTML='<div class="card" style="border-color:var(--warn);background:var(--warn-bg)">'+
+      '<p style="margin:0 0 2px;font-size:13px;font-weight:700;color:var(--warn)">つけ忘れていませんか？</p>'+
+      '<p style="margin:0 0 10px;font-size:17px;font-weight:700;color:var(--warn)">'+lbl+'は働きましたか？</p>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+      '<button class="btn primary" id="ask-yes">働いた（'+fmtHM(cand.pl.s)+'〜'+fmtHM(cand.pl.e)+'）</button>'+
+      '<button class="btn" id="ask-no">お休みだった</button></div></div>';
+    $('ask-yes').onclick=function(){state.records[cand.k]={s:cand.pl.s,e:cand.pl.e};save();renderAll();toast('つけました');};
+    $('ask-no').onclick=function(){state.plans[cand.k]=null;save();renderAll();toast('わかりました');};
+  }else{ask.innerHTML='';}
+  var parts=partsOf(P.s,P.e);
+  var cur=amountOf(parts.mp,parts.mh);
+  $('h-amount').innerHTML=cur.toLocaleString('ja-JP')+'<small> 円</small>';
+  $('h-cap').textContent='上限 '+yen(st.cap);
+  var fut=plannedFuture(td,P.e);
+  var n=0,allFit=true,mp=parts.mp,mh=parts.mh;
+  for(var i=0;i<fut.length;i++){var f=fut[i];var tmp=f.hol?amountOf(mp,mh+f.m):amountOf(mp+f.m,mh);
+    if(tmp<=st.cap){n++;if(f.hol)mh+=f.m;else mp+=f.m;}else{allFit=false;break;}}
+  var finalAmt=amountOf(mp,mh);
+  var sig=$('h-signal'),cls,html;
+  if(cur>st.cap){cls='bad';html='<p class="b1">上限を '+yen(cur-st.cap)+' こえています</p><p class="b2">今月はもうお休みにしましょう</p>';}
+  else if(fut.length===0){cls='ok';html='<p class="b1">この期間の予定はおわりです</p><p class="b2">合計 '+yen(cur)+' でおさまりました</p>';}
+  else if(allFit){cls='ok';html='<p class="b1">最後まで働いても だいじょうぶ</p><p class="b2">'+(P.e.getMonth()+1)+'月20日までの見込み '+yen(finalAmt)+'</p>';}
+  else if(n===0){cls='bad';html='<p class="b1">これ以上働くと上限をこえます</p><p class="b2">きょうからお休みが安心です</p>';}
+  else{cls=(n<=1)?'warn':'ok';html='<p class="b1">あと '+n+'日 働けます</p><p class="b2">'+(n+1)+'日以上出ると '+yen(st.cap)+' をこえそうです</p>';}
+  sig.className='box '+cls;sig.innerHTML=html;
+  var bar=$('h-bar');var pct=Math.min(100,Math.round(cur/st.cap*100));
+  bar.style.width=pct+'%';bar.className=(cur>st.cap)?'bad':(!allFit&&n<=1)?'warn':'';
+
+  var k=dkey(td),rec=state.records[k],tdBox=$('h-today');
+  if(rec){
+    tdBox.innerHTML='<div class="done-line"><p>きょうは記録ずみ<small>'+fmtHM(rec.s)+'〜'+fmtHM(rec.e)+'（'+fmtDur(durOf(rec))+'）</small></p>'+
+      '<span style="display:flex;gap:8px;flex-shrink:0"><button class="btn" id="h-fix">時間をなおす</button><button class="btn danger" id="h-undo">取り消す</button></span></div>';
+    $('h-fix').onclick=function(){openEdit(k);};
+    $('h-undo').onclick=function(){delete state.records[k];save();renderAll();toast('取り消しました');};
+  }else{
+    var sh=resolvedPlan(k,td)||{s:'09:00',e:'14:00'};
+    tdBox.innerHTML='<button class="bigbtn" id="h-work">きょう働いた をつける</button>'+
+      '<p class="hint">いつもの時間（'+fmtHM(sh.s)+'〜'+fmtHM(sh.e)+'）で記録します</p>';
+    $('h-work').onclick=function(){state.records[k]={s:sh.s,e:sh.e};save();renderAll();toast('つけました');};
+  }
+
+  var ws=new Date(td);ws.setDate(ws.getDate()-ws.getDay());
+  var we=new Date(ws);we.setDate(we.getDate()+6);
+  var wmin=0;eachDay(ws,we,function(d){var r=state.records[dkey(d)];if(r)wmin+=durOf(r);});
+  var wlimit=st.weekLimitH*60+st.weekLimitM;
+  $('h-wtext').textContent=fmtDur(wmin)+' ／ '+fmtDur(wlimit)+'まで';
+  var wbar=$('h-wbar');wbar.style.width=Math.min(100,Math.round(wmin/wlimit*100))+'%';
+  var wnote=$('h-wnote');
+  if(wmin>wlimit){wbar.className='bad';wnote.textContent='上限を'+fmtDur(wmin-wlimit)+'こえています。週20時間に注意！';wnote.style.color='var(--bad)';}
+  else if(wlimit-wmin<=60){wbar.className='warn';wnote.textContent='あと'+fmtDur(wlimit-wmin)+'。残業に気をつけて';wnote.style.color='var(--warn)';}
+  else{wbar.className='';wnote.textContent='週20時間をこえないように見張っています';wnote.style.color='var(--sub)';}
+}
+
+function renderYotei(){
+  var td=today0(),P=periodOf(td),st=state.settings;
+  $('y-range').textContent=P.label+'（'+P.range+'）このまま働くと？';
+  var parts=partsOf(P.s,P.e);
+  var cur=amountOf(parts.mp,parts.mh);
+  var fut=plannedFuture(td,P.e);
+  var html='<li><div class="l"><p>きょうまでの合計</p><small>出勤 '+parts.days+'日</small></div>'+
+    '<div class="r"><p><b>'+yen(cur)+'</b></p></div></li>';
+  var mp=parts.mp,mh=parts.mh,firstOver=null;
+  for(var i=0;i<fut.length;i++){var f=fut[i];
+    if(f.hol)mh+=f.m;else mp+=f.m;
+    var amt=amountOf(mp,mh);var over=amt>st.cap;
+    if(over&&!firstOver)firstOver={f:f,before:i===0?cur:prevAmt};
+    var prevAmt=amt;
+    html+='<li'+(over?' class="over"':'')+'><div class="l"><p>'+dayLabel(f.d)+'</p><small>'+fmtHM(f.sh.s)+'〜'+fmtHM(f.sh.e)+'</small></div>'+
+      '<div class="r"><p>'+yen(amt)+'</p><small class="'+(over?'badt':'okt')+'">'+(over?'こえます':'はたらけます')+'</small></div></li>';
+  }
+  $('y-list').innerHTML=html;
+  var adv=$('y-advice');
+  if(cur>st.cap){adv.innerHTML='<div class="box bad"><p class="b1">もう上限をこえています</p><p class="b2">この先はお休みにしましょう</p></div>';}
+  else if(fut.length===0){adv.innerHTML='<div class="box ok"><p class="b1">この先の予定はありません</p></div>';}
+  else if(!firstOver){adv.innerHTML='<div class="box ok"><p class="b1">最後まで働いても だいじょうぶです</p></div>';}
+  else{adv.innerHTML='<div class="box warn"><p class="b1">'+fullLabel(firstOver.f.d)+'からお休みにすると<br>'+yen(firstOver.before)+' でおさまります</p></div>';}
+}
+
+var viewDate=null;
+function renderKiroku(){
+  var td=today0();
+  if(!viewDate)viewDate=new Date(td.getFullYear(),td.getMonth(),1);
+  var y=viewDate.getFullYear(),m=viewDate.getMonth();
+  $('k-title').textContent=y+'年'+(m+1)+'月';
+  var first=new Date(y,m,1),lead=first.getDay(),dim=new Date(y,m+1,0).getDate();
+  var html='<tr><th class="su">日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th class="sa">土</th></tr><tr>';
+  var col=0;
+  for(var i=0;i<lead;i++){html+='<td></td>';col++;}
+  for(var day=1;day<=dim;day++){
+    var d=new Date(y,m,day),k=dkey(d),r=state.records[k];
+    var cls='day',sub='';
+    if(d.getDay()===0||HOLIDAYS.has(k))cls+=' su';else if(d.getDay()===6)cls+=' sa';
+    if(r){cls+=' rec';sub='<span class="t">'+fmtColon(durOf(r))+'</span>';}
+    else if(d>=td){var pl=resolvedPlan(k,d);
+      if(pl){cls+=' plan';sub='<span class="t">'+fmtColon(Math.max(0,hm2min(pl.e)-hm2min(pl.s)))+'</span>';}}
+    if(k===dkey(td))cls+=' today';
+    html+='<td><button class="'+cls+'" data-k="'+k+'"><span class="n">'+day+'</span>'+sub+'</button></td>';
+    col++;if(col===7&&day<dim){html+='</tr><tr>';col=0;}
+  }
+  while(col>0&&col<7){html+='<td></td>';col++;}
+  html+='</tr>';
+  $('k-cal').innerHTML=html;
+  var btns=document.querySelectorAll('#k-cal .day');
+  for(var b=0;b<btns.length;b++){btns[b].onclick=function(){
+    var kk=this.getAttribute('data-k');
+    if(state.records[kk]||fromKey(kk)<=td)openEdit(kk);else openPlan(kk);
+  };}
+  var pe=new Date(y,m,20),P=periodOf(pe);
+  var parts=partsOf(P.s,P.e);
+  $('k-plabel').textContent=P.label+'（'+P.range+'）';
+  $('k-psum').textContent=yen(amountOf(parts.mp,parts.mh));
+  $('k-pdays').textContent='出勤 '+parts.days+'日・'+fmtDur(parts.min)+'（通勤手当 '+yen(state.settings.commute)+' こみ）';
+}
+$('k-prev').onclick=function(){viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1);renderKiroku();};
+$('k-next').onclick=function(){viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1);renderKiroku();};
+
+var editKey=null,editMode='rec';
+function openEdit(k){
+  editMode='rec';editKey=k;var d=fromKey(k),r=state.records[k];
+  var sh=r||resolvedPlan(k,d)||{s:'09:00',e:'14:00'};
+  $('e-title').textContent=fullLabel(d);
+  $('e-start').value=sh.s;$('e-end').value=sh.e;
+  $('e-err').textContent='';
+  $('e-save').textContent='保存する';
+  $('e-del').textContent='働いていない日にする';
+  $('e-del').style.display=r?'':'none';
+  $('ovl').classList.add('show');
+}
+function openPlan(k){
+  editMode='plan';editKey=k;var d=fromKey(k);
+  var pl=resolvedPlan(k,d);
+  var base=pl||state.settings.shifts[d.getDay()]||{s:'09:00',e:'14:00'};
+  $('e-title').textContent=fullLabel(d)+' の予定';
+  $('e-start').value=base.s;$('e-end').value=base.e;
+  $('e-err').textContent='';
+  $('e-save').textContent=pl?'予定を保存する':'働く予定にする';
+  $('e-del').textContent='お休みの予定にする';
+  $('e-del').style.display=pl?'':'none';
+  $('ovl').classList.add('show');
+}
+function closeEdit(){$('ovl').classList.remove('show');editKey=null;}
+$('e-save').onclick=function(){
+  var s=$('e-start').value,e=$('e-end').value;
+  if(!s||!e){$('e-err').textContent='時間を入れてください';return;}
+  if(hm2min(e)<=hm2min(s)){$('e-err').textContent='終わりの時間が始まりより前になっています';return;}
+  if(editMode==='plan'){state.plans[editKey]={s:s,e:e};}
+  else{state.records[editKey]={s:s,e:e};}
+  save();closeEdit();renderAll();toast('保存しました');
+};
+$('e-del').onclick=function(){
+  if(editMode==='plan'){
+    var d=fromKey(editKey);
+    if(state.settings.shifts[d.getDay()])state.plans[editKey]=null;else delete state.plans[editKey];
+    save();closeEdit();renderAll();toast('お休みの予定にしました');
+  }else{
+    delete state.records[editKey];save();closeEdit();renderAll();toast('消しました');
+  }
+};
+$('e-close').onclick=closeEdit;
+$('ovl').addEventListener('click',function(ev){if(ev.target===this)closeEdit();});
+
+function renderSettei(){
+  var st=state.settings;
+  $('s-cap').value=st.cap;$('s-wp').value=st.wagePlain;$('s-wh').value=st.wageHoliday;
+  $('s-com').value=st.commute;$('s-wlh').value=st.weekLimitH;$('s-wlm').value=st.weekLimitM;
+  var order=[0,1,2,3,4,5,6],html='';
+  for(var i=0;i<7;i++){var g=order[i],sh=st.shifts[g];
+    html+='<div class="shift-row"><span class="wd'+(g===0?' su':g===6?' sa':'')+'">'+WN[g]+'</span>'+
+      '<input type="checkbox" data-g="'+g+'" class="sh-on"'+(sh?' checked':'')+' aria-label="'+WN[g]+'曜日に働く">'+
+      '<input type="time" data-g="'+g+'" class="sh-s" value="'+(sh?sh.s:'09:00')+'"'+(sh?'':' disabled')+' aria-label="始まり">'+
+      '<span class="tilde">〜</span>'+
+      '<input type="time" data-g="'+g+'" class="sh-e" value="'+(sh?sh.e:'14:00')+'"'+(sh?'':' disabled')+' aria-label="終わり">'+
+      (sh?'':'<span class="unit">お休み</span>')+'</div>';
+  }
+  $('s-shifts').innerHTML=html;
+  var ons=document.querySelectorAll('.sh-on');
+  for(var a=0;a<ons.length;a++){ons[a].onchange=shiftChange;}
+  var ts=document.querySelectorAll('.sh-s,.sh-e');
+  for(var b=0;b<ts.length;b++){ts[b].onchange=shiftChange;}
+}
+function shiftChange(){
+  var st=state.settings;
+  for(var g=0;g<7;g++){
+    var on=document.querySelector('.sh-on[data-g="'+g+'"]');
+    var s=document.querySelector('.sh-s[data-g="'+g+'"]');
+    var e=document.querySelector('.sh-e[data-g="'+g+'"]');
+    if(on.checked){st.shifts[g]={s:s.value||'09:00',e:e.value||'14:00'};}
+    else{st.shifts[g]=null;}
+  }
+  save();renderSettei();renderHome();renderYotei();renderKiroku();toast('保存しました');
+}
+function numSetting(id,key,min){
+  $(id).onchange=function(){var v=parseInt(this.value,10);
+    if(isNaN(v)||v<min){this.value=state.settings[key];return;}
+    state.settings[key]=v;save();renderHome();renderYotei();renderKiroku();toast('保存しました');};
+}
+numSetting('s-cap','cap',1);numSetting('s-wp','wagePlain',0);numSetting('s-wh','wageHoliday',0);
+numSetting('s-com','commute',0);numSetting('s-wlh','weekLimitH',0);numSetting('s-wlm','weekLimitM',0);
+
+$('s-export').onclick=function(){$('s-io').value=JSON.stringify(state);$('s-io').select();toast('コピーしてください');};
+$('s-import').onclick=function(){
+  try{var j=JSON.parse($('s-io').value);
+    if(!j||!j.settings||!j.records)throw 0;
+    if(!j.plans)j.plans={};
+    state=j;save();state=load();renderAll();renderSettei();toast('読み込みました');
+  }catch(e){toast('読み込めませんでした');}
+};
+$('s-reset').onclick=function(){
+  if(window.confirm('すべての記録と設定を消して、最初の状態にもどします。よろしいですか？')){
+    state=defaults();save();viewDate=null;renderAll();renderSettei();toast('最初にもどしました');}
+};
+
+var navBtns=document.querySelectorAll('nav button');
+for(var nb=0;nb<navBtns.length;nb++){
+  navBtns[nb].onclick=function(){
+    var scr=this.getAttribute('data-scr');
+    for(var i=0;i<navBtns.length;i++)navBtns[i].classList.remove('active');
+    this.classList.add('active');
+    var scrs=document.querySelectorAll('.screen');
+    for(var j=0;j<scrs.length;j++)scrs[j].classList.remove('active');
+    $('scr-'+scr).classList.add('active');
+    if(scr==='kiroku'){var td=today0();viewDate=new Date(td.getFullYear(),td.getMonth(),1);}
+    renderAll();
+    window.scrollTo(0,0);
+  };
+}
+function renderAll(){renderHome();renderYotei();renderKiroku();}
+renderAll();renderSettei();
+
+var installCard=$('h-install'),instBtn=$('inst-btn');
+var deferredPrompt=null;
+var isStandalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
+function refreshInstall(){
+  if(isStandalone){installCard.style.display='none';return;}
+  installCard.style.display=(deferredPrompt||isIOS)?'':'none';
+}
+instBtn.onclick=function(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(ch){
+      if(ch&&ch.outcome==='accepted'){deferredPrompt=null;refreshInstall();}
+    });
+  }else if(isIOS){$('ios-ovl').classList.add('show');}
+};
+$('ios-close').onclick=function(){$('ios-ovl').classList.remove('show');};
+$('ios-ovl').addEventListener('click',function(ev){if(ev.target===this)this.classList.remove('show');});
+window.addEventListener('beforeinstallprompt',function(ev){ev.preventDefault();deferredPrompt=ev;refreshInstall();});
+window.addEventListener('appinstalled',function(){deferredPrompt=null;installCard.style.display='none';toast('入りました！ホーム画面を見てください');});
+if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js');}catch(e){}}
+refreshInstall();
+})();
+</script>
+</body>
+</html>
