@@ -163,6 +163,13 @@ nav button.active{color:var(--accent)}
     <div class="week"><div class="bar"><i id="h-wbar"></i></div><span id="h-wtext"></span></div>
     <p class="hint" id="h-wnote"></p>
   </div>
+  <div class="card">
+    <h2 id="h-ytitle">ことしの合計（1月〜12月）</h2>
+    <p class="meter-num" style="font-size:32px;margin:2px 0 8px" id="h-year"></p>
+    <div class="bar"><i id="h-ybar"></i></div>
+    <p class="bar-cap" id="h-ycap"></p>
+    <p class="hint">賞与と、アプリを使い始める前の分は入っていません</p>
+  </div>
   <div class="card" id="h-install" style="display:none">
     <h2>アプリとしてスマホに入れる</h2>
     <p class="hint" style="text-align:left;margin:0 0 10px">入れておくと、ホーム画面のアイコンから全画面で開けるようになります。</p>
@@ -210,6 +217,7 @@ nav button.active{color:var(--accent)}
   <div class="card">
     <h2>金額</h2>
     <div class="set-row"><label for="s-cap">月の上限額</label><span><input type="number" id="s-cap" step="1000" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+    <div class="set-row"><label for="s-ycap">年間のめやす額</label><span><input type="number" id="s-ycap" step="10000" min="0" inputmode="numeric" style="width:128px"> <span class="unit">円</span></span></div>
     <div class="set-row"><label for="s-wp">平日の時給</label><span><input type="number" id="s-wp" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
     <div class="set-row"><label for="s-wh">土日祝の時給</label><span><input type="number" id="s-wh" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
     <div class="set-row"><label for="s-com">通勤手当（月）</label><span><input type="number" id="s-com" step="100" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
@@ -225,6 +233,19 @@ nav button.active{color:var(--accent)}
     <h2>いつもの勤務時間</h2>
     <div id="s-shifts"></div>
   </div>
+  <details>
+    <summary>「壁」のはなし（かんたん説明）</summary>
+    <div style="font-size:15px;line-height:1.9">
+      <p>ぜい金や保険料は、<b>1月から12月までの1年間の合計</b>で決まります。1か月だけ多く働いても、その月にすぐ何かかかるわけではありません。</p>
+      <p>このアプリの「月の上限」は、1年間のめやすを12か月で割ったものです。<b>毎月まもっていれば、年末にあわてて休む必要がなくなります。</b></p>
+      <p>6月ごろから お給料で「住民税」が引かれるのは、<b>去年の分</b>のぜい金です。その月に働きすぎたからではありません。</p>
+      <p>また、<b>週20時間以上</b>の働き方が続くと、社会保険（ねんきん・健康保険）に入ることになる場合があります。このアプリが週の時間も見張っているのはそのためです。</p>
+      <p><b>壁の金額や条件は、年によって変わります。</b>最新の正しい情報はこちらで確認できます（ご家族の方向け）:</p>
+      <p><a href="https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1800.htm" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">国税庁：パート収入にかかる税金</a><br>
+      <a href="https://www.mhlw.go.jp/tekiyoukakudai/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">厚生労働省：社会保険の適用（106万円の壁など）</a></p>
+      <p style="font-size:13px;color:var(--sub)">金額が変わったら「月の上限額」「年間のめやす額」をこの画面で直すだけでOKです。社会保険の月8.8万円基準に合わせたいときは、月の上限額を88,000円にしてください。</p>
+    </div>
+  </details>
   <details>
     <summary>つかいかた</summary>
     <ol style="padding-left:20px">
@@ -330,7 +351,7 @@ var HOLIDAYS=new Set([
 ]);
 var WN=['日','月','火','水','木','金','土'];
 function defaults(){return{
-  settings:{cap:100000,wagePlain:1100,wageHoliday:1105,commute:8000,weekLimitH:19,weekLimitM:40,
+  settings:{cap:100000,annualTarget:1200000,wagePlain:1100,wageHoliday:1105,commute:8000,weekLimitH:19,weekLimitM:40,
     shifts:[null,null,null,{s:'09:00',e:'13:40'},{s:'09:00',e:'14:00'},{s:'09:00',e:'14:00'},{s:'09:00',e:'14:00'}]},
   records:{},plans:{},firstUse:dkey(today0())};}
 var state=load();
@@ -433,6 +454,19 @@ function renderHome(){
       '<p class="hint">いつもの時間（'+fmtHM(sh.s)+'〜'+fmtHM(sh.e)+'）で記録します</p>';
     $('h-work').onclick=function(){state.records[k]={s:sh.s,e:sh.e};save();renderAll();toast('つけました');};
   }
+
+  var yTotal=0;
+  for(var mm=0;mm<12;mm++){
+    var P2=periodOf(new Date(td.getFullYear(),mm,20));
+    var pp=partsOf(P2.s,P2.e);
+    if(pp.days>0)yTotal+=amountOf(pp.mp,pp.mh);
+  }
+  $('h-ytitle').textContent='ことしの合計（'+td.getFullYear()+'年1月〜12月）';
+  $('h-year').innerHTML=yTotal.toLocaleString('ja-JP')+'<small> 円</small>';
+  $('h-ycap').textContent='年間のめやす '+yen(st.annualTarget);
+  var ybar=$('h-ybar');
+  ybar.style.width=Math.min(100,Math.round(yTotal/st.annualTarget*100))+'%';
+  ybar.className=(yTotal>st.annualTarget)?'bad':(yTotal>st.annualTarget*0.9)?'warn':'';
 
   var ws=new Date(td);ws.setDate(ws.getDate()-ws.getDay());
   var we=new Date(ws);we.setDate(we.getDate()+6);
@@ -575,7 +609,7 @@ $('ovl').addEventListener('click',function(ev){if(ev.target===this)closeEdit();}
 
 function renderSettei(){
   var st=state.settings;
-  $('s-cap').value=st.cap;$('s-wp').value=st.wagePlain;$('s-wh').value=st.wageHoliday;
+  $('s-cap').value=st.cap;$('s-ycap').value=st.annualTarget;$('s-wp').value=st.wagePlain;$('s-wh').value=st.wageHoliday;
   $('s-com').value=st.commute;$('s-wlh').value=st.weekLimitH;$('s-wlm').value=st.weekLimitM;
   var order=[0,1,2,3,4,5,6],html='';
   for(var i=0;i<7;i++){var g=order[i],sh=st.shifts[g];
@@ -608,7 +642,7 @@ function numSetting(id,key,min){
     if(isNaN(v)||v<min){this.value=state.settings[key];return;}
     state.settings[key]=v;save();renderHome();renderYotei();renderKiroku();toast('保存しました');};
 }
-numSetting('s-cap','cap',1);numSetting('s-wp','wagePlain',0);numSetting('s-wh','wageHoliday',0);
+numSetting('s-cap','cap',1);numSetting('s-ycap','annualTarget',1);numSetting('s-wp','wagePlain',0);numSetting('s-wh','wageHoliday',0);
 numSetting('s-com','commute',0);numSetting('s-wlh','weekLimitH',0);numSetting('s-wlm','weekLimitM',0);
 
 $('s-export').onclick=function(){$('s-io').value=JSON.stringify(state);$('s-io').select();toast('コピーしてください');};
