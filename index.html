@@ -151,24 +151,26 @@ nav button.active{color:var(--accent)}
   <p class="sub" id="h-range"></p>
   <div id="h-ask"></div>
   <div class="card">
-    <p class="meter-label">ここまでのお給料（見込み）</p>
-    <p class="meter-num" id="h-amount"></p>
-    <div class="bar"><i id="h-bar"></i></div>
-    <p class="bar-cap" id="h-cap"></p>
-    <div class="box" id="h-signal"></div>
+    <p class="meter-label">今週の働いた時間（日〜土）</p>
+    <p class="meter-num" id="h-wbig" style="font-size:38px"></p>
+    <div class="bar"><i id="h-wbar"></i></div>
+    <p class="bar-cap" id="h-wcap"></p>
+    <div class="box" id="h-wsignal"></div>
   </div>
   <div class="card" id="h-today"></div>
-  <div class="card">
-    <h2>今週の働いた時間</h2>
-    <div class="week"><div class="bar"><i id="h-wbar"></i></div><span id="h-wtext"></span></div>
-    <p class="hint" id="h-wnote"></p>
-  </div>
   <div class="card">
     <h2 id="h-ytitle">ことしの合計（1月〜12月）</h2>
     <p class="meter-num" style="font-size:32px;margin:2px 0 8px" id="h-year"></p>
     <div class="bar"><i id="h-ybar"></i></div>
     <p class="bar-cap" id="h-ycap"></p>
     <p class="hint">賞与と、アプリを使い始める前の分は入っていません</p>
+  </div>
+  <div class="card">
+    <p class="meter-label">今月のお給料（ここまでの見込み）</p>
+    <p class="meter-num" id="h-amount" style="font-size:36px"></p>
+    <div class="bar"><i id="h-bar"></i></div>
+    <p class="bar-cap" id="h-cap"></p>
+    <div class="box" id="h-signal"></div>
   </div>
   <div class="card" id="h-install" style="display:none">
     <h2>アプリとしてスマホに入れる</h2>
@@ -473,12 +475,16 @@ function renderHome(){
   var we=new Date(ws);we.setDate(we.getDate()+6);
   var wmin=0;eachDay(ws,we,function(d){var r=state.records[dkey(d)];if(r)wmin+=durOf(r);});
   var wlimit=st.weekLimitH*60+st.weekLimitM;
-  $('h-wtext').textContent=fmtDur(wmin)+' ／ '+fmtDur(wlimit)+'まで';
+  $('h-wbig').textContent=fmtDur(wmin);
+  $('h-wcap').textContent='上限 '+fmtDur(wlimit)+'（週20時間の決まりを守るため）';
   var wbar=$('h-wbar');wbar.style.width=Math.min(100,Math.round(wmin/wlimit*100))+'%';
-  var wnote=$('h-wnote');
-  if(wmin>wlimit){wbar.className='bad';wnote.textContent='上限を'+fmtDur(wmin-wlimit)+'こえています。週20時間に注意！';wnote.style.color='var(--bad)';}
-  else if(wlimit-wmin<=60){wbar.className='warn';wnote.textContent='あと'+fmtDur(wlimit-wmin)+'。残業に気をつけて';wnote.style.color='var(--warn)';}
-  else{wbar.className='';wnote.textContent='週20時間をこえないように見張っています';wnote.style.color='var(--sub)';}
+  var wsig=$('h-wsignal');
+  if(wmin>wlimit){wbar.className='bad';wsig.className='box bad';
+    wsig.innerHTML='<p class="b1">'+fmtDur(wmin-wlimit)+' こえています</p><p class="b2">今週はもうお休みにしましょう。来月も続くと社会保険の対象になります</p>';}
+  else if(wlimit-wmin<=60){wbar.className='warn';wsig.className='box warn';
+    wsig.innerHTML='<p class="b1">今週はあと '+fmtDur(wlimit-wmin)+' だけ</p><p class="b2">残業や追加シフトに気をつけて</p>';}
+  else{wbar.className='';wsig.className='box ok';
+    wsig.innerHTML='<p class="b1">だいじょうぶ</p><p class="b2">今週はあと '+fmtDur(wlimit-wmin)+' 働けます</p>';}
 }
 
 var yoteiOffset=0;
