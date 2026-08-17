@@ -172,6 +172,11 @@ nav button.active{color:var(--accent)}
 
 <section id="scr-yotei" class="screen">
   <h1>よてい</h1>
+  <div class="cal-head" style="max-width:320px;margin:0 auto 2px">
+    <button id="y-prev" aria-label="前の月分">◀</button>
+    <p id="y-title"></p>
+    <button id="y-next" aria-label="次の月分">▶</button>
+  </div>
   <p class="sub" id="y-range"></p>
   <div class="card">
     <ul class="rowlist" id="y-list"></ul>
@@ -191,6 +196,7 @@ nav button.active{color:var(--accent)}
     <table class="cal" id="k-cal"></table>
     <p class="hint" style="text-align:left;margin:6px 0 0">ぬりつぶし＝働いた日　点線のわく＝働く予定（おすと変えられます）</p>
     <div class="sumline"><span id="k-plabel"></span><b id="k-psum"></b></div>
+    <div class="sumline" id="k-projline"><span>予定こみの見込み</span><b id="k-proj"></b></div>
     <div class="sumline"><span></span><b id="k-pdays" style="font-weight:400;color:var(--sub);font-size:13px"></b></div>
   </div>
 </section>
@@ -423,13 +429,20 @@ function renderHome(){
   else{wbar.className='';wnote.textContent='週20時間をこえないように見張っています';wnote.style.color='var(--sub)';}
 }
 
+var yoteiOffset=0;
 function renderYotei(){
-  var td=today0(),P=periodOf(td),st=state.settings;
-  $('y-range').textContent=P.label+'（'+P.range+'）このまま働くと？';
-  var parts=partsOf(P.s,P.e);
+  var td=today0(),st=state.settings;
+  var base=periodOf(td);
+  var s=new Date(base.s.getFullYear(),base.s.getMonth()+yoteiOffset,21);
+  var e=new Date(base.e.getFullYear(),base.e.getMonth()+yoteiOffset,20);
+  $('y-title').textContent=(e.getMonth()+1)+'月分'+(yoteiOffset===0?'（今月）':'');
+  $('y-range').textContent=(s.getMonth()+1)+'月21日〜'+(e.getMonth()+1)+'月20日 このまま働くと？';
+  var parts=partsOf(s,e);
   var cur=amountOf(parts.mp,parts.mh);
-  var fut=plannedFuture(td,P.e);
-  var html='<li><div class="l"><p>きょうまでの合計</p><small>出勤 '+parts.days+'日</small></div>'+
+  var from=td>s?td:s;
+  var fut=(td>e)?[]:plannedFuture(from,e);
+  var firstLabel=(td>e)?'この月分の合計':'きょうまでの合計';
+  var html='<li><div class="l"><p>'+firstLabel+'</p><small>出勤 '+parts.days+'日</small></div>'+
     '<div class="r"><p><b>'+yen(cur)+'</b></p></div></li>';
   var mp=parts.mp,mh=parts.mh,firstOver=null;
   for(var i=0;i<fut.length;i++){var f=fut[i];
@@ -482,9 +495,21 @@ function renderKiroku(){
   $('k-plabel').textContent=P.label+'（'+P.range+'）';
   $('k-psum').textContent=yen(amountOf(parts.mp,parts.mh));
   $('k-pdays').textContent='出勤 '+parts.days+'日・'+fmtDur(parts.min)+'（通勤手当 '+yen(state.settings.commute)+' こみ）';
+  var kfrom=td>P.s?td:P.s;
+  var kfut=(td>P.e)?[]:plannedFuture(kfrom,P.e);
+  if(kfut.length){
+    var kmp=parts.mp,kmh=parts.mh;
+    for(var q=0;q<kfut.length;q++){if(kfut[q].hol)kmh+=kfut[q].m;else kmp+=kfut[q].m;}
+    var kproj=amountOf(kmp,kmh);
+    $('k-projline').style.display='';
+    $('k-proj').textContent=yen(kproj);
+    $('k-proj').style.color=(kproj>state.settings.cap)?'var(--bad)':'var(--ok)';
+  }else{$('k-projline').style.display='none';}
 }
 $('k-prev').onclick=function(){viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1);renderKiroku();};
 $('k-next').onclick=function(){viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1);renderKiroku();};
+$('y-prev').onclick=function(){if(yoteiOffset>-12){yoteiOffset--;renderYotei();}};
+$('y-next').onclick=function(){if(yoteiOffset<12){yoteiOffset++;renderYotei();}};
 
 var editKey=null,editMode='rec';
 function openEdit(k){
@@ -592,6 +617,7 @@ for(var nb=0;nb<navBtns.length;nb++){
     for(var j=0;j<scrs.length;j++)scrs[j].classList.remove('active');
     $('scr-'+scr).classList.add('active');
     if(scr==='kiroku'){var td=today0();viewDate=new Date(td.getFullYear(),td.getMonth(),1);}
+    if(scr==='yotei')yoteiOffset=0;
     renderAll();
     window.scrollTo(0,0);
   };
@@ -621,7 +647,7 @@ $('and-close').onclick=function(){$('and-ovl').classList.remove('show');};
 $('and-ovl').addEventListener('click',function(ev){if(ev.target===this)this.classList.remove('show');});
 window.addEventListener('beforeinstallprompt',function(ev){ev.preventDefault();deferredPrompt=ev;refreshInstall();});
 window.addEventListener('appinstalled',function(){deferredPrompt=null;installCard.style.display='none';toast('入りました！ホーム画面を見てください');});
-if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js');}catch(e){}}
+if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(function(){});}catch(e){}}
 refreshInstall();
 })();
 </script>
