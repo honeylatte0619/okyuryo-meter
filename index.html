@@ -281,6 +281,19 @@ nav button.active{color:var(--accent)}
   </div>
 </div>
 
+<div class="ovl" id="and-ovl">
+  <div class="panel">
+    <h2>ホーム画面に入れる手順</h2>
+    <p style="font-size:15px;margin:0 0 10px;color:var(--sub)">LINEなどから開いた場合は、先にメニューから<b>「Chromeで開く」（他のブラウザで開く）</b>をおしてください。</p>
+    <ol style="font-size:17px;line-height:2.1;padding-left:24px;margin:0 0 14px">
+      <li>Chromeの右上の <b>「︙」</b> をおす</li>
+      <li><b>「アプリをインストール」</b>または<b>「ホーム画面に追加」</b>をおす</li>
+      <li><b>「インストール」（追加）</b>をおす</li>
+    </ol>
+    <button class="btn" id="and-close" style="width:100%">とじる</button>
+  </div>
+</div>
+
 <div id="toast" role="status"></div>
 
 <script>
@@ -591,8 +604,7 @@ var deferredPrompt=null;
 var isStandalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
 var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent);
 function refreshInstall(){
-  if(isStandalone){installCard.style.display='none';return;}
-  installCard.style.display=(deferredPrompt||isIOS)?'':'none';
+  installCard.style.display=isStandalone?'none':'';
 }
 instBtn.onclick=function(){
   if(deferredPrompt){
@@ -601,9 +613,12 @@ instBtn.onclick=function(){
       if(ch&&ch.outcome==='accepted'){deferredPrompt=null;refreshInstall();}
     });
   }else if(isIOS){$('ios-ovl').classList.add('show');}
+  else{$('and-ovl').classList.add('show');}
 };
 $('ios-close').onclick=function(){$('ios-ovl').classList.remove('show');};
 $('ios-ovl').addEventListener('click',function(ev){if(ev.target===this)this.classList.remove('show');});
+$('and-close').onclick=function(){$('and-ovl').classList.remove('show');};
+$('and-ovl').addEventListener('click',function(ev){if(ev.target===this)this.classList.remove('show');});
 window.addEventListener('beforeinstallprompt',function(ev){ev.preventDefault();deferredPrompt=ev;refreshInstall();});
 window.addEventListener('appinstalled',function(){deferredPrompt=null;installCard.style.display='none';toast('入りました！ホーム画面を見てください');});
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js');}catch(e){}}
