@@ -150,6 +150,7 @@ nav button.active{color:var(--accent)}
   <h1 id="h-title">お給料メーター</h1>
   <p class="sub" id="h-range"></p>
   <div id="h-ask"></div>
+  <div id="h-sh"></div>
   <div class="card">
     <p class="meter-label">今週の働いた時間（日〜土）</p>
     <p class="meter-num" id="h-wbig" style="font-size:38px"></p>
@@ -242,7 +243,7 @@ nav button.active{color:var(--accent)}
       <p>ぜい金や保険料は、<b>1月から12月までの1年間の合計</b>で決まります。1か月だけ多く働いても、その月にすぐ何かかかるわけではありません。</p>
       <p>このアプリの「月の上限」は、1年間のめやすを12か月で割ったものです。<b>毎月まもっていれば、年末にあわてて休む必要がなくなります。</b></p>
       <p>6月ごろから お給料で「住民税」が引かれるのは、<b>去年の分</b>のぜい金です。その月に働きすぎたからではありません。</p>
-      <p>また、<b>週20時間以上</b>の働き方が続くと、社会保険（ねんきん・健康保険）に入ることになる場合があります。このアプリが週の時間も見張っているのはそのためです。</p>
+      <p><b>いちばん大事なのは「週20時間」</b>です。実際に働いた時間が週20時間以上の月が<b>2か月続いて、その後も続きそうなとき</b>は、3か月目から社会保険（ねんきん・健康保険）に入ることになり、手取りが月1万円ほど減ります。1か月だけ超えても大丈夫。<b>「2か月連続」を作らないこと</b>が守り方です。水曜が13時40分までなのは、週を19時間40分におさえてこの線を守るためです。あぶなくなるとホーム画面に赤いお知らせが出ます。</p>
       <p><b>壁の金額や条件は、年によって変わります。</b>最新の正しい情報はこちらで確認できます（ご家族の方向け）:</p>
       <p><a href="https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1800.htm" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">国税庁：パート収入にかかる税金</a><br>
       <a href="https://www.mhlw.go.jp/tekiyoukakudai/" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700">厚生労働省：社会保険の適用（106万円の壁など）</a></p>
@@ -470,6 +471,39 @@ function renderHome(){
   var ybar=$('h-ybar');
   ybar.style.width=Math.min(100,Math.round(yTotal/st.annualTarget*100))+'%';
   ybar.className=(yTotal>st.annualTarget)?'bad':(yTotal>st.annualTarget*0.9)?'warn':'';
+
+  var SH=1225;
+  function weeklyAvg(s2,e2,withPlan){
+    var min=0;
+    eachDay(s2,e2,function(d){var r=state.records[dkey(d)];if(r)min+=durOf(r);});
+    if(withPlan&&td<=e2){
+      var from2=td>s2?td:s2;
+      plannedFuture(from2,e2).forEach(function(f){min+=f.m;});
+    }
+    var nd=Math.round((e2-s2)/86400000)+1;
+    return min/(nd/7);
+  }
+  var Pprev={s:new Date(P.s.getFullYear(),P.s.getMonth()-1,21),e:new Date(P.e.getFullYear(),P.e.getMonth()-1,20)};
+  var prevAvg=weeklyAvg(Pprev.s,Pprev.e,false);
+  var curAvg=weeklyAvg(P.s,P.e,true);
+  var shEl=$('h-sh');
+  function shCard(color,line1,line2){
+    return '<div class="card" style="border-color:var(--'+color+');background:var(--'+color+'-bg)">'+
+      '<p style="margin:0 0 2px;font-size:13px;font-weight:700;color:var(--'+color+')">社会保険の見張り（週20時間）</p>'+
+      '<p style="margin:0;font-size:16px;font-weight:700;color:var(--'+color+')">'+line1+'</p>'+
+      '<p style="margin:4px 0 0;font-size:13px;color:var(--'+color+')">'+line2+'</p></div>';
+  }
+  function avgTxt(v){return fmtDur(Math.round(v));}
+  if(prevAvg>=SH&&curAvg>=SH){
+    shEl.innerHTML=shCard('bad','2か月連続で週20時間をこえそうです',
+      '先月は週平均'+avgTxt(prevAvg)+'、今月もこのままだと週平均'+avgTxt(curAvg)+'。連続すると社会保険に入ることになり、手取りが月1万円ほど減ります。今月のシフトを減らしましょう');
+  }else if(prevAvg>=SH){
+    shEl.innerHTML=shCard('warn','先月は週平均'+avgTxt(prevAvg)+'で、20時間をこえていました',
+      '今月もこえると「2か月連続」で社会保険の対象になります。今月は週20時間をこえないようにしましょう');
+  }else if(curAvg>=SH){
+    shEl.innerHTML=shCard('warn','今月の予定のままだと週平均'+avgTxt(curAvg)+'になります',
+      '週20時間をこえるペースです。よてい画面を見て、シフトを減らしましょう');
+  }else{shEl.innerHTML='';}
 
   var ws=new Date(td);ws.setDate(ws.getDate()-ws.getDay());
   var we=new Date(ws);we.setDate(we.getDate()+6);
