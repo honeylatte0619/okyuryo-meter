@@ -669,6 +669,15 @@ window.addEventListener('beforeinstallprompt',function(ev){ev.preventDefault();d
 window.addEventListener('appinstalled',function(){deferredPrompt=null;installCard.style.display='none';toast('入りました！ホーム画面を見てください');});
 if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(function(){});}catch(e){}}
 refreshInstall();
+
+function pingCount(name){
+  try{fetch('https://github.com/honeylatte0619/okyuryo-meter/releases/download/counter/'+name,{mode:'no-cors',cache:'no-store'}).catch(function(){});}catch(e){}
+}
+try{
+  var pToday=dkey(today0());
+  if(!localStorage.getItem('km-installed')){localStorage.setItem('km-installed','1');pingCount('install-count.txt');}
+  if(localStorage.getItem('km-lastopen')!==pToday){localStorage.setItem('km-lastopen',pToday);pingCount('open-count.txt');}
+}catch(e){}
 })();
 </script>
 </body>

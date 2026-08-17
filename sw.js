@@ -19,6 +19,7 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   if (e.request.mode === 'navigate') {
     e.respondWith(
       fetch(e.request, { cache: 'no-cache' }).then(function (r) {
