@@ -424,7 +424,7 @@ function renderHome(){
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
       '<button class="btn primary" id="ask-yes">働いた（'+fmtHM(cand.pl.s)+'〜'+fmtHM(cand.pl.e)+'）</button>'+
       '<button class="btn" id="ask-no">お休みだった</button></div></div>';
-    $('ask-yes').onclick=function(){state.records[cand.k]={s:cand.pl.s,e:cand.pl.e};save();renderAll();toast('つけました');};
+    $('ask-yes').onclick=function(){state.records[cand.k]={s:cand.pl.s,e:cand.pl.e};save();noteActivity();renderAll();toast('つけました');};
     $('ask-no').onclick=function(){state.plans[cand.k]=null;save();renderAll();toast('わかりました');};
   }else{ask.innerHTML='';}
   var parts=partsOf(P.s,P.e);
@@ -456,7 +456,7 @@ function renderHome(){
     var sh=resolvedPlan(k,td)||{s:'09:00',e:'14:00'};
     tdBox.innerHTML='<button class="bigbtn" id="h-work">きょう働いた をつける</button>'+
       '<p class="hint">いつもの時間（'+fmtHM(sh.s)+'〜'+fmtHM(sh.e)+'）で記録します</p>';
-    $('h-work').onclick=function(){state.records[k]={s:sh.s,e:sh.e};save();renderAll();toast('つけました');};
+    $('h-work').onclick=function(){state.records[k]={s:sh.s,e:sh.e};save();noteActivity();renderAll();toast('つけました');};
   }
 
   var yTotal=0;
@@ -633,7 +633,7 @@ $('e-save').onclick=function(){
   if(!s||!e){$('e-err').textContent='時間を入れてください';return;}
   if(hm2min(e)<=hm2min(s)){$('e-err').textContent='終わりの時間が始まりより前になっています';return;}
   if(editMode==='plan'){state.plans[editKey]={s:s,e:e};}
-  else{state.records[editKey]={s:s,e:e};}
+  else{state.records[editKey]={s:s,e:e};noteActivity();}
   save();closeEdit();renderAll();toast('保存しました');
 };
 $('e-del').onclick=function(){
@@ -748,11 +748,13 @@ refreshInstall();
 function pingCount(name){
   try{fetch('https://github.com/honeylatte0619/okyuryo-meter/releases/download/counter/'+name,{mode:'no-cors',cache:'no-store'}).catch(function(){});}catch(e){}
 }
-try{
-  var pToday=dkey(today0());
-  if(!localStorage.getItem('km-installed')){localStorage.setItem('km-installed','1');pingCount('install-count.txt');}
-  if(localStorage.getItem('km-lastopen')!==pToday){localStorage.setItem('km-lastopen',pToday);pingCount('open-count.txt');}
-}catch(e){}
+function noteActivity(){
+  try{
+    var pToday=dkey(today0());
+    if(!localStorage.getItem('km-installed')){localStorage.setItem('km-installed','1');pingCount('install-count.txt');}
+    if(localStorage.getItem('km-lastopen')!==pToday){localStorage.setItem('km-lastopen',pToday);pingCount('open-count.txt');}
+  }catch(e){}
+}
 })();
 </script>
 </body>
