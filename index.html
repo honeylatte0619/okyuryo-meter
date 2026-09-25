@@ -258,6 +258,7 @@ nav button.active{color:var(--accent)}
       <li><b>「よてい」</b>を見ると、いつまで働けるか・いつお休みすればよいかがわかります。</li>
       <li>おし間違えたら<b>「きろく」</b>でその日をおして直せます。</li>
       <li>つけ忘れても大丈夫。次に開いたときに<b>「◯日は働きましたか？」</b>と聞いてくれます。</li>
+      <li><b>有給休暇の日</b>は「働いた」をつけてから「時間をなおす」で<b>「この日は有給休暇」</b>にチェック。お給料には入り、働いた時間には入りません。</li>
       <li>職場のシフト表が出たら、<b>「きろく」で先の日をおして予定を合わせておく</b>と、その時点で「超えそうかどうか」がわかります。いつもどおり（水木金土）の月は何もしなくてOK。</li>
     </ol>
     <p><b>スマホのホーム画面に置くには</b><br>
@@ -291,6 +292,7 @@ nav button.active{color:var(--accent)}
       <span class="tilde">〜</span>
       <input type="time" id="e-end" step="300" aria-label="終わりの時間">
     </div>
+    <p id="e-pto-row" style="text-align:center;margin:0"><label style="font-size:16px"><input type="checkbox" id="e-pto" style="vertical-align:-4px"> この日は有給休暇</label></p>
     <p class="err" id="e-err"></p>
     <div class="acts">
       <button class="bigbtn" id="e-save">保存する</button>
@@ -448,7 +450,7 @@ function renderHome(){
 
   var k=dkey(td),rec=state.records[k],tdBox=$('h-today');
   if(rec){
-    tdBox.innerHTML='<div class="done-line"><p>きょうは記録ずみ<small>'+fmtHM(rec.s)+'〜'+fmtHM(rec.e)+'（'+fmtDur(durOf(rec))+'）</small></p>'+
+    tdBox.innerHTML='<div class="done-line"><p>きょうは記録ずみ<small>'+fmtHM(rec.s)+'〜'+fmtHM(rec.e)+'（'+(rec.pto?'有給':fmtDur(durOf(rec)))+'）</small></p>'+
       '<span style="display:flex;gap:8px;flex-shrink:0"><button class="btn" id="h-fix">時間をなおす</button><button class="btn danger" id="h-undo">取り消す</button></span></div>';
     $('h-fix').onclick=function(){openEdit(k);};
     $('h-undo').onclick=function(){delete state.records[k];save();renderAll();toast('取り消しました');};
@@ -475,7 +477,7 @@ function renderHome(){
   var SH=1225;
   function weeklyAvg(s2,e2,withPlan){
     var min=0;
-    eachDay(s2,e2,function(d){var r=state.records[dkey(d)];if(r)min+=durOf(r);});
+    eachDay(s2,e2,function(d){var r=state.records[dkey(d)];if(r&&!r.pto)min+=durOf(r);});
     if(withPlan&&td<=e2){
       var from2=td>s2?td:s2;
       plannedFuture(from2,e2).forEach(function(f){min+=f.m;});
@@ -507,7 +509,7 @@ function renderHome(){
 
   var ws=new Date(td);ws.setDate(ws.getDate()-ws.getDay());
   var we=new Date(ws);we.setDate(we.getDate()+6);
-  var wmin=0;eachDay(ws,we,function(d){var r=state.records[dkey(d)];if(r)wmin+=durOf(r);});
+  var wmin=0;eachDay(ws,we,function(d){var r=state.records[dkey(d)];if(r&&!r.pto)wmin+=durOf(r);});
   var wlimit=st.weekLimitH*60+st.weekLimitM;
   $('h-wbig').textContent=fmtDur(wmin);
   $('h-wcap').textContent='上限 '+fmtDur(wlimit)+'（週20時間の決まりを守るため）';
@@ -567,7 +569,7 @@ function renderKiroku(){
     var d=new Date(y,m,day),k=dkey(d),r=state.records[k];
     var cls='day',sub='';
     if(d.getDay()===0||HOLIDAYS.has(k))cls+=' su';else if(d.getDay()===6)cls+=' sa';
-    if(r){cls+=' rec';sub='<span class="t">'+fmtColon(durOf(r))+'</span>';}
+    if(r){cls+=' rec';sub='<span class="t">'+(r.pto?'有給':fmtColon(durOf(r)))+'</span>';}
     else if(d>=td){var pl=resolvedPlan(k,d);
       if(pl){cls+=' plan';sub='<span class="t">'+fmtColon(Math.max(0,hm2min(pl.e)-hm2min(pl.s)))+'</span>';}}
     if(k===dkey(td))cls+=' today';
@@ -610,6 +612,8 @@ function openEdit(k){
   $('e-title').textContent=fullLabel(d);
   $('e-start').value=sh.s;$('e-end').value=sh.e;
   $('e-err').textContent='';
+  $('e-pto').checked=!!(r&&r.pto);
+  $('e-pto-row').style.display='';
   $('e-save').textContent='保存する';
   $('e-del').textContent='働いていない日にする';
   $('e-del').style.display=r?'':'none';
@@ -622,6 +626,7 @@ function openPlan(k){
   $('e-title').textContent=fullLabel(d)+' の予定';
   $('e-start').value=base.s;$('e-end').value=base.e;
   $('e-err').textContent='';
+  $('e-pto-row').style.display='none';
   $('e-save').textContent=pl?'予定を保存する':'働く予定にする';
   $('e-del').textContent='お休みの予定にする';
   $('e-del').style.display=pl?'':'none';
@@ -633,7 +638,7 @@ $('e-save').onclick=function(){
   if(!s||!e){$('e-err').textContent='時間を入れてください';return;}
   if(hm2min(e)<=hm2min(s)){$('e-err').textContent='終わりの時間が始まりより前になっています';return;}
   if(editMode==='plan'){state.plans[editKey]={s:s,e:e};}
-  else{state.records[editKey]={s:s,e:e};noteActivity();}
+  else{var nr={s:s,e:e};if($('e-pto').checked)nr.pto=true;state.records[editKey]=nr;noteActivity();}
   save();closeEdit();renderAll();toast('保存しました');
 };
 $('e-del').onclick=function(){
