@@ -225,20 +225,26 @@ nav button.active{color:var(--accent)}
   </div>
   <div class="card">
     <h2>時給</h2>
-    <div id="s-wage-list"></div>
-    <div id="s-wage-form" style="display:none;border-top:1px solid var(--line);margin-top:8px;padding-top:8px">
-      <div class="set-row" id="s-wage-fromrow" style="border-bottom:none"><label>いつから</label>
+    <div class="set-row"><label for="s-wp">平日の時給</label><span><input type="number" id="s-wp" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+    <div class="set-row"><label for="s-wh">土日祝の時給</label><span><input type="number" id="s-wh" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+    <p class="hint" style="text-align:left">数字のまちがいは、ここを直すだけでOK。</p>
+    <button class="btn" id="s-wage-new" style="width:100%;margin-top:8px">時給が変わった日を登録する</button>
+    <div id="s-wage-form" style="display:none;border-top:1px solid var(--line);margin-top:10px;padding-top:8px">
+      <div class="set-row" style="border-bottom:none"><label>いつから</label>
         <input type="date" id="s-wage-from" style="padding:9px 6px;font-size:15px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-family:inherit"></div>
-      <div class="set-row" style="border-bottom:none"><label>平日の時給</label><span><input type="number" id="s-wage-wp" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
-      <div class="set-row" style="border-bottom:none"><label>土日祝の時給</label><span><input type="number" id="s-wage-wh" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+      <div class="set-row" style="border-bottom:none"><label>新しい平日の時給</label><span><input type="number" id="s-wage-wp" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
+      <div class="set-row" style="border-bottom:none"><label>新しい土日祝の時給</label><span><input type="number" id="s-wage-wh" step="5" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
       <p class="hint" id="s-wage-err" style="color:var(--bad);text-align:left;min-height:1.2em;margin:2px 0 6px"></p>
       <div style="display:flex;gap:8px">
-        <button class="btn primary" id="s-wage-save" style="flex:1">保存する</button>
+        <button class="btn primary" id="s-wage-save" style="flex:1">登録する</button>
         <button class="btn" id="s-wage-cancel">やめる</button>
       </div>
+      <p class="hint" style="text-align:left">登録すると、その日より前の記録は前の時給のまま計算されます。</p>
     </div>
-    <button class="btn" id="s-wage-new" style="width:100%;margin-top:10px">時給が変わったら押す（新しい時給を追加）</button>
-    <p class="hint" style="text-align:left">昔の記録は、当時の時給のままで計算されます。</p>
+    <details id="s-wage-hist" style="margin-top:10px">
+      <summary>むかしの時給（きりかえの記録）</summary>
+      <div id="s-wage-list"></div>
+    </details>
   </div>
   <div class="card">
     <h2>週の時間の上限</h2>
@@ -398,6 +404,7 @@ function save(){try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
 function dkey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function fromKey(k){var p=k.split('-');return new Date(+p[0],+p[1]-1,+p[2]);}
 function nextDay(k){var p=k.split('-');return dkey(new Date(+p[0],+p[1]-1,+p[2]+1));}
+function prevDay(k){var p=k.split('-');return dkey(new Date(+p[0],+p[1]-1,+p[2]-1));}
 function hm2min(t){var p=t.split(':');return (+p[0])*60+(+p[1]);}
 function durOf(r){return Math.max(0,hm2min(r.e)-hm2min(r.s));}
 function fmtHM(t){return t.replace(/^0/,'');}
@@ -703,28 +710,23 @@ function renderSettei(){
   var ts=document.querySelectorAll('.sh-s,.sh-e');
   for(var b=0;b<ts.length;b++){ts[b].onchange=shiftChange;}
   var ws2=st.wages.slice().sort(function(a,b2){return a.from<b2.from?-1:1;});
+  var latest=ws2[ws2.length-1];
+  $('s-wp').value=latest.wp;$('s-wh').value=latest.wh;
   var wl='';
-  for(var wi=0;wi<ws2.length;wi++){var w3=ws2[wi];var lbl;
-    if(w3.from==='0000-00-00')lbl='さいしょから';
-    else{var pz=w3.from.split('-');lbl=(+pz[0])+'年'+(+pz[1])+'月'+(+pz[2])+'日から';}
-    wl+='<div class="set-row"><label><b>'+lbl+'</b><br><span style="font-size:14px;color:var(--sub)">平日'+w3.wp.toLocaleString('ja-JP')+'円・土日祝'+w3.wh.toLocaleString('ja-JP')+'円</span></label>'+
-      (w3.from==='0000-00-00'
-        ?'<button class="btn wage-fix" style="padding:7px 12px;font-size:14px">なおす</button>'
-        :'<button class="btn danger wage-del" data-f="'+w3.from+'" style="padding:7px 12px;font-size:14px">削除</button>')+'</div>';
+  for(var wi=0;wi<ws2.length-1;wi++){var w3=ws2[wi];
+    var u=prevDay(ws2[wi+1].from),pz=u.split('-');
+    wl+='<div class="set-row"><label>'+(+pz[0])+'年'+(+pz[1])+'月'+(+pz[2])+'日まで<br><span style="font-size:14px;color:var(--sub)">平日'+w3.wp.toLocaleString('ja-JP')+'円・土日祝'+w3.wh.toLocaleString('ja-JP')+'円</span></label>'+
+      '<button class="btn danger wage-del" data-f="'+w3.from+'" style="padding:7px 12px;font-size:14px">削除</button></div>';
   }
   $('s-wage-list').innerHTML=wl;
-  var wfix=document.querySelector('.wage-fix');
-  if(wfix)wfix.onclick=function(){
-    wageEditBase=true;
-    $('s-wage-fromrow').style.display='none';
-    var base=null;for(var bi=0;bi<st.wages.length;bi++)if(st.wages[bi].from==='0000-00-00')base=st.wages[bi];
-    $('s-wage-wp').value=base?base.wp:'';$('s-wage-wh').value=base?base.wh:'';
-    $('s-wage-err').textContent='';$('s-wage-form').style.display='';
-  };
+  $('s-wage-hist').style.display=wl?'':'none';
   var wdel=document.querySelectorAll('.wage-del');
   for(var w4=0;w4<wdel.length;w4++){wdel[w4].onclick=function(){
     var f=this.getAttribute('data-f');
-    state.settings.wages=state.settings.wages.filter(function(o2){return o2.from!==f;});
+    var arr=state.settings.wages.filter(function(o2){return o2.from!==f;});
+    arr.sort(function(a,b3){return a.from<b3.from?-1:1;});
+    if(arr.length&&arr[0].from!=='0000-00-00')arr[0].from='0000-00-00';
+    state.settings.wages=arr;
     save();renderSettei();renderHome();renderYotei();renderKiroku();toast('削除しました');
   };}
 }
@@ -746,30 +748,30 @@ function numSetting(id,key,min){
 }
 numSetting('s-cap','cap',1);numSetting('s-ycap','annualTarget',1);
 numSetting('s-com','commute',0);numSetting('s-wlh','weekLimitH',0);numSetting('s-wlm','weekLimitM',0);
-var wageEditBase=false;
+function wageLatest(){var ws=state.settings.wages,b=ws[0];
+  for(var i=1;i<ws.length;i++)if(ws[i].from>b.from)b=ws[i];return b;}
+function wageField(id,key){
+  $(id).onchange=function(){var v=parseInt(this.value,10);
+    if(isNaN(v)||v<=0){this.value=wageLatest()[key];return;}
+    wageLatest()[key]=v;save();renderSettei();renderHome();renderYotei();renderKiroku();toast('保存しました');};
+}
+wageField('s-wp','wp');wageField('s-wh','wh');
 $('s-wage-new').onclick=function(){
-  wageEditBase=false;
-  $('s-wage-fromrow').style.display='';
   $('s-wage-from').value='';$('s-wage-wp').value='';$('s-wage-wh').value='';
   $('s-wage-err').textContent='';$('s-wage-form').style.display='';
 };
 $('s-wage-cancel').onclick=function(){$('s-wage-form').style.display='none';};
 $('s-wage-save').onclick=function(){
   var wp=parseInt($('s-wage-wp').value,10),wh=parseInt($('s-wage-wh').value,10);
-  if(isNaN(wp)||wp<=0||isNaN(wh)||wh<=0){$('s-wage-err').textContent='平日と土日祝の時給を入れてください';return;}
-  if(wageEditBase){
-    for(var i=0;i<state.settings.wages.length;i++)if(state.settings.wages[i].from==='0000-00-00'){state.settings.wages[i].wp=wp;state.settings.wages[i].wh=wh;}
-  }else{
-    var f=$('s-wage-from').value;
-    if(!f){$('s-wage-err').textContent='「いつから」の日付を入れてください';return;}
-    state.settings.wages=state.settings.wages.filter(function(o){return o.from!==f;});
-    state.settings.wages.push({from:f,wp:wp,wh:wh});
-    state.settings.wages.sort(function(a,b){return a.from<b.from?-1:1;});
-  }
+  var f=$('s-wage-from').value;
+  if(!f){$('s-wage-err').textContent='「いつから」の日付を入れてください';return;}
+  if(isNaN(wp)||wp<=0||isNaN(wh)||wh<=0){$('s-wage-err').textContent='新しい時給を2つとも入れてください';return;}
+  state.settings.wages=state.settings.wages.filter(function(o){return o.from!==f;});
+  state.settings.wages.push({from:f,wp:wp,wh:wh});
+  state.settings.wages.sort(function(a,b){return a.from<b.from?-1:1;});
   save();$('s-wage-form').style.display='none';
-  renderSettei();renderHome();renderYotei();renderKiroku();toast('保存しました');
+  renderSettei();renderHome();renderYotei();renderKiroku();toast('切りかえを登録しました');
 };
-
 $('s-export').onclick=function(){$('s-io').value=JSON.stringify(state);$('s-io').select();toast('コピーしてください');};
 $('s-import').onclick=function(){
   try{var j=JSON.parse($('s-io').value);
