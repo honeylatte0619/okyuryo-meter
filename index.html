@@ -226,6 +226,19 @@ nav button.active{color:var(--accent)}
     <div class="set-row"><label for="s-com">通勤手当（月）</label><span><input type="number" id="s-com" step="100" min="0" inputmode="numeric"> <span class="unit">円</span></span></div>
   </div>
   <div class="card">
+    <h2>むかしの時給（時給が上がったとき用）</h2>
+    <p class="hint" style="text-align:left;margin:0 0 6px">時給が上がったら、上の「平日の時給」「土日祝の時給」を<b>新しい額</b>に直してから、ここに「<b>いつまで・いくらだったか</b>」を追加します。昔の記録は昔の時給のままで計算されます。</p>
+    <div id="s-ow-list"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px">
+      <input type="date" id="s-ow-until" style="padding:9px 6px;font-size:15px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-family:inherit">
+      <span class="unit">まで</span>
+      <span class="unit">平日</span><input type="number" id="s-ow-wp" step="5" min="0" style="width:84px" inputmode="numeric">
+      <span class="unit">土日祝</span><input type="number" id="s-ow-wh" step="5" min="0" style="width:84px" inputmode="numeric">
+      <button class="btn" id="s-ow-add">追加</button>
+    </div>
+    <p class="hint" id="s-ow-err" style="color:var(--bad);text-align:left;min-height:1.2em;margin:4px 0 0"></p>
+  </div>
+  <div class="card">
     <h2>週の時間の上限</h2>
     <div class="set-row"><label>1週間（日〜土）に働くのは</label>
       <span><input type="number" id="s-wlh" step="1" min="0" max="80" style="width:64px" inputmode="numeric"> <span class="unit">時間</span>
@@ -357,7 +370,7 @@ var HOLIDAYS=new Set([
 ]);
 var WN=['日','月','火','水','木','金','土'];
 function defaults(){return{
-  settings:{cap:100000,annualTarget:1200000,wagePlain:1100,wageHoliday:1105,commute:8000,weekLimitH:19,weekLimitM:40,
+  settings:{cap:100000,annualTarget:1200000,wagePlain:1100,wageHoliday:1105,commute:8000,weekLimitH:19,weekLimitM:40,oldWages:[],
     shifts:[null,null,null,{s:'09:00',e:'13:40'},{s:'09:00',e:'14:00'},{s:'09:00',e:'14:00'},{s:'09:00',e:'14:00'}]},
   records:{},plans:{},firstUse:dkey(today0())};}
 var state=load();
@@ -385,12 +398,19 @@ function periodOf(d){var s,e;
   else{s=new Date(d.getFullYear(),d.getMonth()-1,21);e=new Date(d.getFullYear(),d.getMonth(),20);}
   return{s:s,e:e,label:(e.getMonth()+1)+'月分',range:(s.getMonth()+1)+'月21日〜'+(e.getMonth()+1)+'月20日'};}
 function eachDay(s,e,fn){for(var d=new Date(s);d<=e;d.setDate(d.getDate()+1))fn(new Date(d));}
-function amountOf(mp,mh){var st=state.settings;
-  return Math.ceil(mp*st.wagePlain/60)+Math.ceil(mh*st.wageHoliday/60)+st.commute;}
-function partsOf(s,e){var mp=0,mh=0,days=0,min=0;
+function rateOf(d,hol){var st=state.settings,k=dkey(d),list=st.oldWages||[],best=null;
+  for(var i=0;i<list.length;i++){var w=list[i];
+    if(k<=w.until&&(best===null||w.until<best.until))best=w;}
+  if(best)return hol?best.wh:best.wp;
+  return hol?st.wageHoliday:st.wagePlain;}
+function bkAdd(bk,d,m,hol){var r=rateOf(d,hol);bk[r]=(bk[r]||0)+m;}
+function bkClone(bk){var o={};for(var r in bk)o[r]=bk[r];return o;}
+function amountBk(bk){var t=state.settings.commute;
+  for(var r in bk)t+=Math.ceil(bk[r]*r/60);return t;}
+function partsOf(s,e){var bk={},days=0,min=0;
   eachDay(s,e,function(d){var r=state.records[dkey(d)];if(!r)return;var m=durOf(r);days++;min+=m;
-    if(isHolRate(d))mh+=m;else mp+=m;});
-  return{mp:mp,mh:mh,days:days,min:min};}
+    bkAdd(bk,d,m,isHolRate(d));});
+  return{bk:bk,days:days,min:min};}
 function resolvedPlan(k,d){var p=state.plans[k];if(p!==undefined)return p;return state.settings.shifts[d.getDay()];}
 function plannedFuture(from,e){var arr=[];
   eachDay(from,e,function(d){var k=dkey(d);if(state.records[k])return;var sh=resolvedPlan(k,d);if(!sh)return;
@@ -430,14 +450,14 @@ function renderHome(){
     $('ask-no').onclick=function(){state.plans[cand.k]=null;save();renderAll();toast('わかりました');};
   }else{ask.innerHTML='';}
   var parts=partsOf(P.s,P.e);
-  var cur=amountOf(parts.mp,parts.mh);
+  var cur=amountBk(parts.bk);
   $('h-amount').innerHTML=cur.toLocaleString('ja-JP')+'<small> 円</small>';
   $('h-cap').textContent='上限 '+yen(st.cap);
   var fut=plannedFuture(td,P.e);
-  var n=0,allFit=true,mp=parts.mp,mh=parts.mh;
-  for(var i=0;i<fut.length;i++){var f=fut[i];var tmp=f.hol?amountOf(mp,mh+f.m):amountOf(mp+f.m,mh);
-    if(tmp<=st.cap){n++;if(f.hol)mh+=f.m;else mp+=f.m;}else{allFit=false;break;}}
-  var finalAmt=amountOf(mp,mh);
+  var n=0,allFit=true,bkRun=bkClone(parts.bk);
+  for(var i=0;i<fut.length;i++){var f=fut[i];var bkT=bkClone(bkRun);bkAdd(bkT,f.d,f.m,f.hol);
+    if(amountBk(bkT)<=st.cap){n++;bkRun=bkT;}else{allFit=false;break;}}
+  var finalAmt=amountBk(bkRun);
   var sig=$('h-signal'),cls,html;
   if(cur>st.cap){cls='bad';html='<p class="b1">上限を '+yen(cur-st.cap)+' こえています</p><p class="b2">今月はもうお休みにしましょう</p>';}
   else if(fut.length===0){cls='ok';html='<p class="b1">この期間の予定はおわりです</p><p class="b2">合計 '+yen(cur)+' でおさまりました</p>';}
@@ -465,7 +485,7 @@ function renderHome(){
   for(var mm=0;mm<12;mm++){
     var P2=periodOf(new Date(td.getFullYear(),mm,20));
     var pp=partsOf(P2.s,P2.e);
-    if(pp.days>0)yTotal+=amountOf(pp.mp,pp.mh);
+    if(pp.days>0)yTotal+=amountBk(pp.bk);
   }
   $('h-ytitle').textContent='ことしの合計（'+td.getFullYear()+'年1月〜12月）';
   $('h-year').innerHTML=yTotal.toLocaleString('ja-JP')+'<small> 円</small>';
@@ -532,16 +552,16 @@ function renderYotei(){
   $('y-title').textContent=(e.getMonth()+1)+'月分'+(yoteiOffset===0?'（今月）':'');
   $('y-range').textContent=(s.getMonth()+1)+'月21日〜'+(e.getMonth()+1)+'月20日 このまま働くと？';
   var parts=partsOf(s,e);
-  var cur=amountOf(parts.mp,parts.mh);
+  var cur=amountBk(parts.bk);
   var from=td>s?td:s;
   var fut=(td>e)?[]:plannedFuture(from,e);
   var firstLabel=(td>e)?'この月分の合計':'きょうまでの合計';
   var html='<li><div class="l"><p>'+firstLabel+'</p><small>出勤 '+parts.days+'日</small></div>'+
     '<div class="r"><p><b>'+yen(cur)+'</b></p></div></li>';
-  var mp=parts.mp,mh=parts.mh,firstOver=null;
+  var bkRun=bkClone(parts.bk),firstOver=null;
   for(var i=0;i<fut.length;i++){var f=fut[i];
-    if(f.hol)mh+=f.m;else mp+=f.m;
-    var amt=amountOf(mp,mh);var over=amt>st.cap;
+    bkAdd(bkRun,f.d,f.m,f.hol);
+    var amt=amountBk(bkRun);var over=amt>st.cap;
     if(over&&!firstOver)firstOver={f:f,before:i===0?cur:prevAmt};
     var prevAmt=amt;
     html+='<li'+(over?' class="over"':'')+'><div class="l"><p>'+dayLabel(f.d)+'</p><small>'+fmtHM(f.sh.s)+'〜'+fmtHM(f.sh.e)+'</small></div>'+
@@ -587,14 +607,14 @@ function renderKiroku(){
   var pe=new Date(y,m,20),P=periodOf(pe);
   var parts=partsOf(P.s,P.e);
   $('k-plabel').textContent=P.label+'（'+P.range+'）';
-  $('k-psum').textContent=yen(amountOf(parts.mp,parts.mh));
+  $('k-psum').textContent=yen(amountBk(parts.bk));
   $('k-pdays').textContent='出勤 '+parts.days+'日・'+fmtDur(parts.min)+'（通勤手当 '+yen(state.settings.commute)+' こみ）';
   var kfrom=td>P.s?td:P.s;
   var kfut=(td>P.e)?[]:plannedFuture(kfrom,P.e);
   if(kfut.length){
-    var kmp=parts.mp,kmh=parts.mh;
-    for(var q=0;q<kfut.length;q++){if(kfut[q].hol)kmh+=kfut[q].m;else kmp+=kfut[q].m;}
-    var kproj=amountOf(kmp,kmh);
+    var kbk=bkClone(parts.bk);
+    for(var q=0;q<kfut.length;q++){bkAdd(kbk,kfut[q].d,kfut[q].m,kfut[q].hol);}
+    var kproj=amountBk(kbk);
     $('k-projline').style.display='';
     $('k-proj').textContent=yen(kproj);
     $('k-proj').style.color=(kproj>state.settings.cap)?'var(--bad)':'var(--ok)';
@@ -671,6 +691,20 @@ function renderSettei(){
   for(var a=0;a<ons.length;a++){ons[a].onchange=shiftChange;}
   var ts=document.querySelectorAll('.sh-s,.sh-e');
   for(var b=0;b<ts.length;b++){ts[b].onchange=shiftChange;}
+  var ows=(st.oldWages||[]).slice().sort(function(a,b2){return a.until<b2.until?-1:1;});
+  var oh='';
+  for(var w=0;w<ows.length;w++){var o=ows[w];var pz=o.until.split('-');
+    oh+='<div class="set-row"><label>'+(+pz[0])+'年'+(+pz[1])+'月'+(+pz[2])+'日まで　平日'+o.wp.toLocaleString('ja-JP')+'円・土日祝'+o.wh.toLocaleString('ja-JP')+'円</label>'+
+      '<button class="btn danger ow-del" data-u="'+o.until+'" style="padding:7px 12px;font-size:14px">削除</button></div>';
+  }
+  if(!oh)oh='<p class="hint" style="text-align:left;margin:0">まだ登録はありません（時給が変わったことがなければ空のままでOK）</p>';
+  $('s-ow-list').innerHTML=oh;
+  var owd=document.querySelectorAll('.ow-del');
+  for(var w2=0;w2<owd.length;w2++){owd[w2].onclick=function(){
+    var u=this.getAttribute('data-u');
+    state.settings.oldWages=(state.settings.oldWages||[]).filter(function(o2){return o2.until!==u;});
+    save();renderSettei();renderHome();renderYotei();renderKiroku();toast('削除しました');
+  };}
 }
 function shiftChange(){
   var st=state.settings;
@@ -690,6 +724,16 @@ function numSetting(id,key,min){
 }
 numSetting('s-cap','cap',1);numSetting('s-ycap','annualTarget',1);numSetting('s-wp','wagePlain',0);numSetting('s-wh','wageHoliday',0);
 numSetting('s-com','commute',0);numSetting('s-wlh','weekLimitH',0);numSetting('s-wlm','weekLimitM',0);
+$('s-ow-add').onclick=function(){
+  var u=$('s-ow-until').value;
+  var wp=parseInt($('s-ow-wp').value,10),wh=parseInt($('s-ow-wh').value,10);
+  if(!u){$('s-ow-err').textContent='「いつまで」の日付を入れてください';return;}
+  if(isNaN(wp)||wp<=0||isNaN(wh)||wh<=0){$('s-ow-err').textContent='平日と土日祝の時給を入れてください';return;}
+  state.settings.oldWages=(state.settings.oldWages||[]).filter(function(o){return o.until!==u;});
+  state.settings.oldWages.push({until:u,wp:wp,wh:wh});
+  save();$('s-ow-err').textContent='';$('s-ow-until').value='';$('s-ow-wp').value='';$('s-ow-wh').value='';
+  renderSettei();renderHome();renderYotei();renderKiroku();toast('追加しました');
+};
 
 $('s-export').onclick=function(){$('s-io').value=JSON.stringify(state);$('s-io').select();toast('コピーしてください');};
 $('s-import').onclick=function(){
